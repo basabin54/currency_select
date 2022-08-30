@@ -21,12 +21,12 @@ Gem::Specification.new do |s|
   s.executables   = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
   s.require_paths = ['lib']
 
-  s.required_ruby_version = '>= 3.1'
+  s.required_ruby_version = '>= 2.7'
 
   s.add_development_dependency 'actionpack', '~> 7.0'
-  s.add_development_dependency 'pry', '~> 0'
+  # s.add_development_dependency 'pry', '~> 0'
   s.add_development_dependency 'rake', '~> 13'
-  s.add_development_dependency 'rspec', '~> 3'
+  # s.add_development_dependency 'rspec', '~> 3'
 
-  s.add_dependency 'money', '~> 6.13'
+  s.add_dependency 'money', '~> 6.0'
 end
