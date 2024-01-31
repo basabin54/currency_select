@@ -102,7 +102,7 @@ module CurrencySelect
 
       raise(CurrencyNotFoundError, "Could not find Currency with string '#{code_or_name}'") unless currency.present?
 
-      code = currency.alpha2
+      code = currency.iso_code
       formatted_currency = ::CurrencySelect::FORMATS[format].call(currency)
 
       if formatted_currency.is_a?(Array)
