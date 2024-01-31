@@ -55,7 +55,7 @@ module CurrencySelect
     end
 
     def currency_options
-      codes = ISO3166::Currency.codes
+      codes = Money::Currency.codes
 
       if only_currency_codes.present?
         codes = only_currency_codes & codes
@@ -98,7 +98,7 @@ module CurrencySelect
     end
 
     def get_formatted_currency(code_or_name)
-      currency = ISO3166::Currency.new(code_or_name) || ISO3166::Currency.find_currency_by_any_name(code_or_name)
+      currency = Money::Currency.new(code_or_name) || Money::Currency.find_currency_by_any_name(code_or_name)
 
       raise(CurrencyNotFoundError, "Could not find Currency with string '#{code_or_name}'") unless currency.present?
 
