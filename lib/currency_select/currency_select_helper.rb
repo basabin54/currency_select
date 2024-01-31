@@ -2,15 +2,10 @@ module ActionView
   module Helpers
     class FormBuilder
       def currency_select(method, priority_or_options = {}, options = {}, html_options = {})
-        if Hash === priority_or_options
+        if priority_or_options.is_a? Hash
           html_options = options
           options = priority_or_options
         else
-          if RUBY_VERSION =~ /^3\.\d\.\d/
-            warn "DEPRECATION WARNING: Setting priority currencies with the 1.x syntax is deprecated. Please use the `priority_currencies:` option.", uplevel: 1, category: :deprecated
-          else
-            warn "DEPRECATION WARNING: Setting priority currencies with the 1.x syntax is deprecated. Please use the `priority_currencies:` option.", uplevel: 1
-          end
           options[:priority_currencies] = priority_or_options
         end
 

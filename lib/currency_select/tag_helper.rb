@@ -1,12 +1,15 @@
 module CurrencySelect
-  class CurrencyNotFoundError < StandardError;end
+  class CurrencyNotFoundError < StandardError; end
+
   module TagHelper
+    unless respond_to?(:options_for_select)
+      include ActionView::Helpers::FormOptionsHelper
+      include ActionView::Helpers::Tags::SelectRenderer if defined?(ActionView::Helpers::Tags::SelectRenderer)
+    end
+
     def currency_option_tags
-      # In Rails 5.2+, `value` accepts no arguments and must also be called
-      # with parens to avoid the local variable of the same name
-      # https://github.com/rails/rails/pull/29791
       selected_option = @options.fetch(:selected) do
-        if self.method(:value).arity == 0
+        if self.method(:value).arity.zero?
           value()
         else
           value(@object)
@@ -14,26 +17,19 @@ module CurrencySelect
       end
 
       option_tags_options = {
-        :selected => selected_option,
-        :disabled => @options[:disabled]
+        selected: selected_option,
+        disabled: @options[:disabled]
       }
 
       if priority_currencies.present?
-        priority_currencies_options = currency_options_for(priority_currencies, @options.fetch(:sort_provided, ::CurrencySelect::DEFAULTS[:sort_provided]))
-
-        option_tags = options_for_select(priority_currencies_options, option_tags_options)
-        option_tags += html_safe_newline + options_for_select([priority_currencies_divider], disabled: priority_currencies_divider)
-
-        option_tags_options[:selected] = [option_tags_options[:selected]] unless option_tags_options[:selected].kind_of?(Array)
-        option_tags_options[:selected].delete_if{|selected| priority_currencies_options.map(&:second).include?(selected)}
-
-        option_tags += html_safe_newline + options_for_select(currency_options, option_tags_options)
+        options_for_select_with_priority_currencies(currency_options, option_tags_options)
       else
-        option_tags = options_for_select(currency_options, option_tags_options)
+        options_for_select(currency_options, option_tags_options)
       end
     end
 
     private
+
     def locale
       @options.fetch(:locale, ::CurrencySelect::DEFAULTS[:locale])
     end
@@ -59,55 +55,61 @@ module CurrencySelect
     end
 
     def currency_options
-      currency_options_for(all_currency_codes, @options.fetch(:sort_provided, ::CurrencySelect::DEFAULTS[:sort_provided]))
-    end
-
-    def all_currency_codes
-      codes = Money::Currency.codes
+      codes = ISO3166::Currency.codes
 
       if only_currency_codes.present?
-        only_currency_codes & codes
-      elsif except_currency_codes.present?
-        codes - except_currency_codes
+        codes = only_currency_codes & codes
+        sort = @options.fetch(:sort_provided, ::CurrencySelect::DEFAULTS[:sort_provided])
       else
-        codes
+        codes -= except_currency_codes if except_currency_codes.present?
+        sort = true
       end
+
+      currency_options_for(codes, sorted: sort)
     end
 
-    def currency_options_for(currency_codes, sorted=true)
+    def currency_options_for(currency_codes, sorted: true)
       I18n.with_locale(locale) do
-        currency_list = currency_codes.map do |code_or_name|
-          if currency = Money::Currency.new(code_or_name)
-            code = currency.iso_code
-          # elsif currency = Money::Currency.find_currency_by_any_name(code_or_name)
-          #   code = currency.alpha2
-          end
+        currency_list = currency_codes.map { |code_or_name| get_formatted_currency(code_or_name) }
 
-          unless currency.present?
-            msg = "Could not find Currency with string '#{code_or_name}'"
-            raise CurrencyNotFoundError.new(msg)
-          end
-
-          formatted_currency = ::CurrencySelect::FORMATS[format].call(currency)
-
-          if formatted_currency.is_a?(Array)
-            formatted_currency
-          else
-            [formatted_currency, code]
-          end
-
-        end
-
-        if sorted
-          currency_list.sort_by { |name, code| [I18n.transliterate(name), name] }
-        else
-          currency_list
-        end
+        currency_list.sort_by! { |name, _| [I18n.transliterate(name.to_s), name] } if sorted
+        currency_list
       end
     end
 
-    def html_safe_newline
-      "\n".html_safe
+    def options_for_select_with_priority_currencies(currency_options, tags_options)
+      sorted = @options.fetch(:sort_provided, ::CurrencySelect::DEFAULTS[:sort_provided])
+      priority_currencies_options = currency_options_for(priority_currencies, sorted: sorted)
+
+      option_tags = priority_options_for_select(priority_currencies_options, tags_options)
+
+      tags_options[:selected] = Array(tags_options[:selected]).delete_if do |selected|
+        priority_currencies_options.map(&:second).include?(selected)
+      end
+
+      option_tags += "\n".html_safe + options_for_select(currency_options, tags_options)
+
+      option_tags
+    end
+
+    def priority_options_for_select(priority_currencies_options, tags_options)
+      option_tags = options_for_select(priority_currencies_options, tags_options)
+      option_tags += "\n".html_safe + options_for_select([priority_currencies_divider], disabled: priority_currencies_divider)
+    end
+
+    def get_formatted_currency(code_or_name)
+      currency = ISO3166::Currency.new(code_or_name) || ISO3166::Currency.find_currency_by_any_name(code_or_name)
+
+      raise(CurrencyNotFoundError, "Could not find Currency with string '#{code_or_name}'") unless currency.present?
+
+      code = currency.alpha2
+      formatted_currency = ::CurrencySelect::FORMATS[format].call(currency)
+
+      if formatted_currency.is_a?(Array)
+        formatted_currency
+      else
+        [formatted_currency, code]
+      end
     end
   end
 end
